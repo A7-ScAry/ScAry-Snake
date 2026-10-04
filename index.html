@@ -24,7 +24,7 @@
   #game{display:block;width:100vw;height:100vh;touch-action:none;background:radial-gradient(circle at 50% 35%,#111831 0,#070b17 52%,#04060d 100%)}
   #hud{position:fixed;inset:0;pointer-events:none}
   .top{
-    position:absolute;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));
+    position:absolute;left:12px;right:12px;top:max(8px,env(safe-area-inset-top));
     display:flex;gap:10px;align-items:flex-start;justify-content:space-between
   }
   .group{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
@@ -248,9 +248,10 @@ const key = p=>`${p.x},${p.y}`;
 const same = (a,b)=>a && b && a.x===b.x && a.y===b.y;
 
 function gridRect(){
-  const marginX = 16;
-  const marginTop = 78;
-  const marginBottom = (matchMedia('(max-width:760px),(pointer:coarse)').matches ? 188 : 24);
+  const isMobileUI = matchMedia('(max-width:760px),(pointer:coarse)').matches;
+  const marginX = isMobileUI ? 10 : 16;
+  const marginTop = isMobileUI ? 56 : 78;
+  const marginBottom = isMobileUI ? 126 : 24;
   const availW = W - marginX*2;
   const availH = H - marginTop - marginBottom;
   const cell = Math.max(12, Math.floor(Math.min(availW/COLS, availH/ROWS)));
