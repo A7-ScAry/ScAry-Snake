@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>ScAry Snake</title>
+<style>
+  :root{
+    --bg:#060812;
+    --panel:rgba(10,14,28,.86);
+    --panel2:rgba(16,23,42,.92);
+    --text:#f7f8ff;
+    --muted:#aab1c8;
+    --accent:#6fe8ff;
+    --accent2:#b06cff;
+    --danger:#ff5d7c;
+    --gold:#ffd85c;
+    --ok:#6dff9a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  body{overflow:hidden}
+  button{font:inherit}
+  #game{display:block;width:100vw;height:100vh;touch-action:none;background:radial-gradient(circle at 50% 35%,#111831 0,#070b17 52%,#04060d 100%)}
+  #hud{position:fixed;inset:0;pointer-events:none}
+  .top{
+    position:absolute;left:12px;right:12px;top:max(12px,env(safe-area-inset-top));
+    display:flex;gap:10px;align-items:flex-start;justify-content:space-between
+  }
+  .group{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
+  .pill{
+    border:1px solid rgba(255,255,255,.11);background:rgba(7,10,20,.72);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    padding:9px 12px;border-radius:999px;font-weight:900;font-size:12px;letter-spacing:.06em;
+    box-shadow:0 10px 30px rgba(0,0,0,.22)
+  }
+  .pill b{color:var(--accent)}
+  #statusPill{max-width:min(56vw,420px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #powerPanel{
+    position:absolute;left:12px;top:58px;
+    width:176px;padding:7px 9px;border-radius:12px;
+    border:1px solid rgba(255,255,255,.07);background:rgba(7,10,20,.34);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    box-shadow:none;opacity:.72
+  }
+  .meterLine{display:grid;grid-template-columns:54px 1fr;align-items:center;gap:7px}
+  .meterLine + .meterLine{margin-top:5px}
+  .label{font-size:8px;font-weight:900;letter-spacing:.08em;color:rgba(231,234,255,.82);white-space:nowrap}
+  .sub{display:none}
+  .bar{height:4px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:0}
+  .fill{height:100%;width:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),#6d8cff,var(--accent2));transition:width .08s linear}
+  #comboBar .fill{background:linear-gradient(90deg,var(--gold),#ff7d6b,#ff5dcf)}
+  #centerCard{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(560px,calc(100vw - 30px));padding:26px;border-radius:28px;
+    background:linear-gradient(180deg,rgba(18,24,46,.96),rgba(7,10,20,.96));
+    border:1px solid rgba(255,255,255,.13);box-shadow:0 35px 100px rgba(0,0,0,.5);
+    text-align:center;pointer-events:auto
+  }
+  #centerCard h1{margin:0;font-size:clamp(34px,8vw,72px);line-height:.9;letter-spacing:-.055em}
+  .grad{background:linear-gradient(90deg,var(--accent),#8c7dff,#ff5fc6);-webkit-background-clip:text;color:transparent}
+  #centerCard p{max-width:470px;margin:16px auto;color:#b9c0d7;line-height:1.55}
+  #centerCard .small{font-size:12px;color:#8f97b0;margin:8px 0 18px}
+  .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .btn{
+    min-height:46px;border:0;border-radius:14px;padding:12px 18px;color:white;font-weight:900;
+    letter-spacing:.05em;cursor:pointer;background:linear-gradient(90deg,#6c6cff,#c65cff)
+  }
+  .btn.secondary{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+  #mobile{
+    display:none;position:absolute;inset:0;pointer-events:none
+  }
+  .touchBtn{
+    position:absolute;pointer-events:auto;border:1px solid rgba(255,255,255,.16);
+    background:rgba(15,20,38,.78);color:white;font-weight:1000;letter-spacing:.05em;
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    user-select:none;-webkit-user-select:none;touch-action:none
+  }
+  #dashBtn{
+    right:18px;bottom:max(24px,env(safe-area-inset-bottom));width:92px;height:92px;border-radius:50%;
+    box-shadow:0 10px 30px rgba(0,0,0,.25)
+  }
+  #pauseBtn{
+    right:24px;top:calc(max(12px,env(safe-area-inset-top)) + 52px);
+    width:52px;height:52px;border-radius:16px
+  }
+  #dpad{
+    left:18px;bottom:max(22px,env(safe-area-inset-bottom));
+    width:150px;height:150px;position:absolute;pointer-events:auto
+  }
+  .dir{
+    width:50px;height:50px;border-radius:14px;display:grid;place-items:center;
+    font-size:22px;position:absolute
+  }
+  #up{left:50px;top:0} #left{left:0;top:50px} #right{right:0;top:50px} #down{left:50px;bottom:0}
+  #toast{
+    position:absolute;left:50%;top:23%;transform:translateX(-50%) scale(.95);
+    font-weight:1000;font-size:clamp(22px,5vw,46px);letter-spacing:-.03em;
+    opacity:0;transition:opacity .12s,transform .12s;text-align:center;text-shadow:0 5px 24px rgba(0,0,0,.6)
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) scale(1)}
+  @media (max-width:760px),(pointer:coarse){
+    #mobile{display:block}
+    #powerPanel{left:12px;top:52px;width:148px;padding:6px 8px;opacity:.58}
+    .meterLine{grid-template-columns:46px 1fr;gap:6px}
+    .label{font-size:7px}
+    .top{right:78px}
+    .pill{font-size:10px;padding:8px 10px}
+  }
+  @media (max-width:430px){
+    #powerPanel{top:48px;width:138px}
+    #dpad{transform:scale(.88);transform-origin:left bottom}
+    #dashBtn{width:80px;height:80px}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="top">
+    <div class="group">
+      <div class="pill">SCORE <b id="score">0</b></div>
+      <div class="pill">BEST <b id="best">0</b></div>
+      <div class="pill">LENGTH <b id="length">4</b></div>
+    </div>
+    <div class="pill" id="statusPill">NORMAL MODE</div>
+  </div>
+
+  <div id="powerPanel" aria-label="Dash and combo meters">
+    <div class="meterLine">
+      <div class="label">DASH</div>
+      <div class="bar"><div class="fill" id="dashFill"></div></div>
+    </div>
+    <div class="meterLine">
+      <div class="label">COMBO</div>
+      <div class="bar" id="comboBar"><div class="fill" id="comboFill"></div></div>
+    </div>
+  </div>
+
+  <div id="toast" aria-live="polite"></div>
+
+  <div id="mobile">
+    <button class="touchBtn" id="pauseBtn" type="button" aria-label="Pause">Ⅱ</button>
+    <div id="dpad" aria-label="Direction controls">
+      <button class="touchBtn dir" id="up" type="button" aria-label="Up">▲</button>
+      <button class="touchBtn dir" id="left" type="button" aria-label="Left">◀</button>
+      <button class="touchBtn dir" id="right" type="button" aria-label="Right">▶</button>
+      <button class="touchBtn dir" id="down" type="button" aria-label="Down">▼</button>
+    </div>
+    <button class="touchBtn" id="dashBtn" type="button">DASH</button>
+  </div>
+
+  <div id="centerCard">
+    <h1><span class="grad">ScAry Snake</span></h1>
+    <p>
+      Classic Snake rebuilt as a fast arcade game: chain fruit for combos, dash through danger,
+      use portals, dodge moving hazards, grab power-ups and trigger Fever Mode.
+    </p>
+    <div class="small">Desktop: WASD / Arrows • Space = Dash • P = Pause &nbsp; | &nbsp; Mobile: swipe or use D-pad</div>
+    <div class="actions">
+      <button class="btn" id="playBtn" type="button">START GAME</button>
+      <button class="btn secondary" id="howBtn" type="button">HOW IT WORKS</button>
+    </div>
+    <div id="result" style="margin-top:16px;font-weight:900"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const bestEl = document.getElementById('best');
+const lengthEl = document.getElementById('length');
+const statusPill = document.getElementById('statusPill');
+const dashFill = document.getElementById('dashFill');
+const comboFill = document.getElementById('comboFill');
+const centerCard = document.getElementById('centerCard');
+const playBtn = document.getElementById('playBtn');
+const howBtn = document.getElementById('howBtn');
+const resultEl = document.getElementById('result');
+const toastEl = document.getElementById('toast');
+
+let W = innerWidth, H = innerHeight, DPR = Math.min(devicePixelRatio || 1, 2);
+function resize(){
+  W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2);
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize);
+resize();
+
+const COLS = 28;
+const ROWS = 22;
+let state = 'menu';
+let snake = [];
+let dir = {x:1,y:0};
+let nextDir = {x:1,y:0};
+let grow = 0;
+let score = 0;
+let best = 0;
+let tickMs = 112;
+let tickAcc = 0;
+let last = performance.now();
+let dashEnergy = 100;
+let dashActive = 0;
+let dashCooldown = 0;
+let combo = 0;
+let comboTimer = 0;
+let fever = 0;
+let invincible = 0;
+let slowTime = 0;
+let shield = 0;
+let multiplier = 1;
+let multiplierTimer = 0;
+let fruit = null;
+let goldFruit = null;
+let power = null;
+let portalA = null;
+let portalB = null;
+let hazards = [];
+let particles = [];
+let floating = [];
+let wave = 0;
+let waveTimer = 0;
+let toastTimer = 0;
+let screenShake = 0;
+let elapsed = 0;
+let foodsEaten = 0;
+let swipeStart = null;
+
+try {
+  best = Number(localStorage.getItem('snakeRushBest') || 0) || 0;
+} catch {}
+bestEl.textContent = best;
+
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const rand = (a,b)=>a+Math.random()*(b-a);
+const randi = (a,b)=>Math.floor(rand(a,b+1));
+const pick = a=>a[(Math.random()*a.length)|0];
+const key = p=>`${p.x},${p.y}`;
+const same = (a,b)=>a && b && a.x===b.x && a.y===b.y;
+
+function gridRect(){
+  const marginX = 16;
+  const marginTop = 78;
+  const marginBottom = (matchMedia('(max-width:760px),(pointer:coarse)').matches ? 188 : 24);
+  const availW = W - marginX*2;
+  const availH = H - marginTop - marginBottom;
+  const cell = Math.max(12, Math.floor(Math.min(availW/COLS, availH/ROWS)));
+  const gw = cell*COLS, gh = cell*ROWS;
+  return {cell, x:Math.floor((W-gw)/2), y:Math.floor(marginTop + Math.max(0,(availH-gh)/2)), w:gw, h:gh};
+}
+
+function occupiedSet(includeItems=true){
+  const s = new Set(snake.map(key));
+  hazards.forEach(h=>s.add(key(h)));
+  if(includeItems){
+    [fruit,goldFruit,power,portalA,portalB].forEach(p=>p&&s.add(key(p)));
+  }
+  return s;
+}
+
+function randomFreeCell(avoidItems=true){
+  const occ = occupiedSet(avoidItems);
+  for(let i=0;i<500;i++){
+    const p = {x:randi(1,COLS-2), y:randi(1,ROWS-2)};
+    if(!occ.has(key(p))) return p;
+  }
+  return {x:2,y:2};
+}
+
+function toast(text, ms=900){
+  toastEl.textContent = text;
+  toastEl.classList.add('show');
+  toastTimer = ms/1000;
+}
+
+function burstCell(p, color, count=12){
+  const g = gridRect();
+  const cx = g.x+(p.x+.5)*g.cell;
+  const cy = g.y+(p.y+.5)*g.cell;
+  for(let i=0;i<count;i++){
+    const a = Math.random()*Math.PI*2, s = rand(40,180);
+    particles.push({x:cx,y:cy,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(.25,.75),max:.75,size:rand(2,6),color});
+  }
+}
+
+function floatText(p,text,color='#fff'){
+  const g = gridRect();
+  floating.push({x:g.x+(p.x+.5)*g.cell,y:g.y+(p.y+.3)*g.cell,text,color,life:1,max:1});
+}
+
+function setDirection(x,y){
+  if(state!=='playing') return;
+  if(x===-dir.x && y===-dir.y) return;
+  nextDir = {x,y};
+}
+
+function resetGame(){
+  const cx = Math.floor(COLS/2), cy = Math.floor(ROWS/2);
+  snake = [{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy},{x:cx-3,y:cy}];
+  dir = {x:1,y:0}; nextDir = {x:1,y:0};
+  grow=0; score=0; tickMs=112; tickAcc=0;
+  dashEnergy=100; dashActive=0; dashCooldown=0;
+  combo=0; comboTimer=0; fever=0; invincible=0; slowTime=0; shield=0;
+  multiplier=1; multiplierTimer=0; goldFruit=null; power=null; hazards=[]; particles=[]; floating=[];
+  portalA=null; portalB=null; wave=0; waveTimer=10; screenShake=0; elapsed=0; foodsEaten=0;
+  fruit=randomFreeCell();
+  spawnPortals();
+  updateHUD();
+}
+
+function startGame(){
+  resetGame();
+  state='playing';
+  centerCard.style.display='none';
+  resultEl.textContent='';
+  last=performance.now();
+  toast('GO!',700);
+}
+
+function endGame(reason='SNAKE DOWN'){
+  state='gameover';
+  if(score>best){
+    best=score;
+    try{localStorage.setItem('snakeRushBest',String(best));}catch{}
+  }
+  bestEl.textContent=best;
+  centerCard.style.display='block';
+  centerCard.querySelector('h1').innerHTML=`${reason}<br><span class="grad">SCORE ${score}</span>`;
+  centerCard.querySelector('p').textContent=`Length ${snake.length} • Fruit ${foodsEaten} • Best ${best}. Hit restart and chase a longer combo.`;
+  resultEl.textContent=score===best && score>0 ? 'NEW BEST SCORE!' : '';
+  playBtn.textContent='PLAY AGAIN';
+}
+
+function spawnPortals(){
+  portalA = randomFreeCell();
+  portalB = randomFreeCell();
+  for(let i=0;i<60 && (Math.abs(portalA.x-portalB.x)+Math.abs(portalA.y-portalB.y)<10);i++) portalB=randomFreeCell();
+}
+
+function spawnGold(){
+  if(!goldFruit && Math.random()<0.42){
+    goldFruit=randomFreeCell();
+    setTimeout(()=>{ goldFruit=null; }, 6500);
+  }
+}
+
+function spawnPower(){
+  if(power) return;
+  const types=['shield','magnet','slow','x2','ghost'];
+  power={...randomFreeCell(),type:pick(types)};
+  setTimeout(()=>{ power=null; }, 8000);
+}
+
+function addHazardWave(){
+  wave++;
+  const count = clamp(2+Math.floor(wave/2),2,9);
+  for(let i=0;i<count;i++){
+    let p=randomFreeCell();
+    hazards.push({x:p.x,y:p.y,axis:Math.random()<.5?'x':'y',dir:Math.random()<.5?-1:1,move:0,color:Math.random()<.5?'#ff5d7c':'#ff9b5d'});
+  }
+  toast(`DANGER WAVE ${wave}!`,1100);
+  screenShake=9;
+}
+
+function triggerDash(){
+  if(state!=='playing' || dashCooldown>0 || dashEnergy<35) return;
+  dashEnergy-=35;
+  dashActive=.42;
+  dashCooldown=.55;
+  invincible=Math.max(invincible,.18);
+  burstCell(snake[0],'#6fe8ff',18);
+  toast('BOOST!',450);
+}
+
+function usePower(p){
+  const t=p.type;
+  if(t==='shield'){ shield=1; toast('SHIELD READY',900); }
+  if(t==='magnet'){ combo=Math.min(100,combo+28); comboTimer=4; toast('COMBO CHARGE +28',900); }
+  if(t==='slow'){ slowTime=7; toast('TIME SLOW',900); }
+  if(t==='x2'){ multiplier=2; multiplierTimer=9; toast('2× SCORE',900); }
+  if(t==='ghost'){ invincible=5; toast('GHOST SNAKE',900); }
+  burstCell(p,'#c77dff',20);
+}
+
+function eatNormal(){
+  foodsEaten++;
+  grow+=1;
+  combo=Math.min(100,combo+18);
+  comboTimer=3.2;
+  let pts=Math.round((10 + Math.floor(combo/20)*2)*multiplier*(fever>0?2:1));
+  score+=pts;
+  floatText(fruit,`+${pts}`,'#6dff9a');
+  burstCell(fruit,'#6dff9a',12);
+  fruit=randomFreeCell();
+  if(foodsEaten%3===0) spawnGold();
+  if(foodsEaten%5===0) spawnPower();
+  if(combo>=100 && fever<=0){
+    fever=7;
+    combo=100;
+    toast('FEVER MODE!',1200);
+    screenShake=8;
+  }
+}
+
+function eatGold(){
+  foodsEaten++;
+  grow+=2;
+  combo=Math.min(100,combo+32);
+  comboTimer=4;
+  const pts=Math.round(50*multiplier*(fever>0?2:1));
+  score+=pts;
+  floatText(goldFruit,`+${pts}`,'#ffd85c');
+  burstCell(goldFruit,'#ffd85c',24);
+  goldFruit=null;
+  dashEnergy=Math.min(100,dashEnergy+30);
+  toast('GOLD FRUIT!',700);
+}
+
+function moveHazards(){
+  if(slowTime>0 && Math.random()<.52) return;
+  const body=new Set(snake.map(key));
+  for(const h of hazards){
+    const n={x:h.x+(h.axis==='x'?h.dir:0),y:h.y+(h.axis==='y'?h.dir:0)};
+    if(n.x<=0||n.x>=COLS-1||n.y<=0||n.y>=ROWS-1||body.has(key(n))){
+      h.dir*=-1;
+    }else{
+      h.x=n.x;h.y=n.y;
+    }
+  }
+}
+
+function step(){
+  if(state!=='playing') return;
+  dir=nextDir;
+  let head={x:snake[0].x+dir.x,y:snake[0].y+dir.y};
+
+  const hitWall=head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS;
+  if(hitWall){
+    if(shield>0){ shield=0; head={x:clamp(head.x,0,COLS-1),y:clamp(head.y,0,ROWS-1)}; toast('SHIELD SAVED YOU',700); }
+    else if(invincible>0){ head={x:(head.x+COLS)%COLS,y:(head.y+ROWS)%ROWS}; }
+    else return endGame('WALL BONK');
+  }
+
+  if(portalA && same(head,portalA)){ head={...portalB}; burstCell(portalA,'#b06cff',16); burstCell(portalB,'#6fe8ff',16); toast('WARP!',500); }
+  else if(portalB && same(head,portalB)){ head={...portalA}; burstCell(portalB,'#b06cff',16); burstCell(portalA,'#6fe8ff',16); toast('WARP!',500); }
+
+  const bodyHit=snake.some((s,i)=>i>0 && same(s,head));
+  if(bodyHit && invincible<=0){
+    if(shield>0){ shield=0; toast('SHIELD SAVED YOU',700); }
+    else return endGame('TAIL BONK');
+  }
+
+  const hazard=hazards.find(h=>same(h,head));
+  if(hazard && invincible<=0){
+    if(shield>0){ shield=0; hazards=hazards.filter(h=>h!==hazard); burstCell(hazard,'#ff5d7c',20); toast('SHIELD BREAK!',650); }
+    else return endGame('LASER BONK');
+  }
+
+  snake.unshift(head);
+
+  if(same(head,fruit)) eatNormal();
+  if(goldFruit && same(head,goldFruit)) eatGold();
+  if(power && same(head,power)){ usePower(power); power=null; }
+
+  if(grow>0) grow--; else snake.pop();
+
+  if(fever>0 && Math.random()<.25) burstCell(head,'#ff5fc6',2);
+  if(dashActive>0 && Math.random()<.5) burstCell(head,'#6fe8ff',2);
+
+  if(foodsEaten>0 && foodsEaten%7===0 && snake.length%2===0 && hazards.length<14) {
+    if(Math.random()<.22) addHazardWave();
+  }
+
+  if(Math.random()<.1) moveHazards();
+  updateHUD();
+}
+
+function updateHUD(){
+  scoreEl.textContent=score;
+  bestEl.textContent=best;
+  lengthEl.textContent=snake.length;
+  dashFill.style.width=clamp(dashEnergy,0,100)+'%';
+  comboFill.style.width=clamp(combo,0,100)+'%';
+  const modes=[];
+  if(fever>0)modes.push(`FEVER ${fever.toFixed(1)}s`);
+  if(invincible>0)modes.push(`GHOST ${invincible.toFixed(1)}s`);
+  if(shield>0)modes.push('SHIELD');
+  if(multiplier>1)modes.push('2× SCORE');
+  if(slowTime>0)modes.push('SLOW TIME');
+  statusPill.textContent=modes.length?modes.join(' • '):'NORMAL MODE';
+}
+
+function update(dt){
+  if(state!=='playing') return;
+  elapsed+=dt;
+  dashCooldown=Math.max(0,dashCooldown-dt);
+  dashActive=Math.max(0,dashActive-dt);
+  invincible=Math.max(0,invincible-dt);
+  slowTime=Math.max(0,slowTime-dt);
+  multiplierTimer=Math.max(0,multiplierTimer-dt);
+  if(multiplierTimer<=0) multiplier=1;
+  fever=Math.max(0,fever-dt);
+  dashEnergy=clamp(dashEnergy+dt*(dashActive>0?5:12),0,100);
+  if(comboTimer>0) comboTimer-=dt;
+  else combo=Math.max(0,combo-dt*14);
+  waveTimer-=dt;
+  if(waveTimer<=0){
+    waveTimer=Math.max(7,12-wave*.45);
+    addHazardWave();
+  }
+
+  const effectiveTick = tickMs * (slowTime>0?1.34:1) * (fever>0?.78:1) * (dashActive>0?.56:1);
+  tickAcc+=dt*1000;
+  let safety=0;
+  while(tickAcc>=effectiveTick && safety++<4){
+    tickAcc-=effectiveTick;
+    step();
+  }
+
+  particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=Math.exp(-2.2*dt);p.vy*=Math.exp(-2.2*dt);p.life-=dt});
+  particles=particles.filter(p=>p.life>0);
+  floating.forEach(f=>{f.y-=35*dt;f.life-=dt});
+  floating=floating.filter(f=>f.life>0);
+  if(toastTimer>0){ toastTimer-=dt; if(toastTimer<=0) toastEl.classList.remove('show'); }
+  screenShake*=Math.exp(-9*dt);
+  updateHUD();
+}
+
+function roundRect(x,y,w,h,r){
+  const rr=Math.min(r,w/2,h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr,y);
+  ctx.arcTo(x+w,y,x+w,y+h,rr);
+  ctx.arcTo(x+w,y+h,x,y+h,rr);
+  ctx.arcTo(x,y+h,x,y,rr);
+  ctx.arcTo(x,y,x+w,y,rr);
+  ctx.closePath();
+}
+
+function drawBoard(){
+  const g=gridRect();
+  const shakeX=rand(-screenShake,screenShake), shakeY=rand(-screenShake,screenShake);
+  ctx.save(); ctx.translate(shakeX,shakeY);
+
+  const bg=ctx.createLinearGradient(g.x,g.y,g.x+g.w,g.y+g.h);
+  bg.addColorStop(0,'#0d1430'); bg.addColorStop(1,'#081020');
+  ctx.fillStyle=bg; roundRect(g.x-8,g.y-8,g.w+16,g.h+16,22); ctx.fill();
+  ctx.strokeStyle='rgba(111,232,255,.26)';ctx.lineWidth=1.5;ctx.stroke();
+
+  ctx.strokeStyle='rgba(255,255,255,.035)';
+  ctx.lineWidth=1;
+  for(let x=0;x<=COLS;x++){ctx.beginPath();ctx.moveTo(g.x+x*g.cell,g.y);ctx.lineTo(g.x+x*g.cell,g.y+g.h);ctx.stroke();}
+  for(let y=0;y<=ROWS;y++){ctx.beginPath();ctx.moveTo(g.x,g.y+y*g.cell);ctx.lineTo(g.x+g.w,g.y+y*g.cell);ctx.stroke();}
+
+  function cellCenter(p){return {x:g.x+(p.x+.5)*g.cell,y:g.y+(p.y+.5)*g.cell}}
+  function glowCircle(p,fill,rad=.32){
+    const c=cellCenter(p), r=g.cell*rad;
+    ctx.save();ctx.shadowBlur=g.cell*.8;ctx.shadowColor=fill;ctx.fillStyle=fill;ctx.beginPath();ctx.arc(c.x,c.y,r,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+
+  if(portalA&&portalB){
+    for(const [p,c1,c2] of [[portalA,'#b06cff','#6fe8ff'],[portalB,'#6fe8ff','#b06cff']]){
+      const c=cellCenter(p);
+      ctx.save();ctx.translate(c.x,c.y);
+      ctx.strokeStyle=c1;ctx.lineWidth=Math.max(2,g.cell*.1);ctx.shadowBlur=g.cell*.8;ctx.shadowColor=c1;
+      ctx.beginPath();ctx.arc(0,0,g.cell*.34,elapsed*2,elapsed*2+Math.PI*1.45);ctx.stroke();
+      ctx.strokeStyle=c2;ctx.beginPath();ctx.arc(0,0,g.cell*.23,-elapsed*2,-elapsed*2+Math.PI*1.45);ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  hazards.forEach(h=>{
+    const c=cellCenter(h);
+    ctx.save();ctx.translate(c.x,c.y);ctx.rotate((h.axis==='x'?0:Math.PI/2));
+    ctx.shadowBlur=g.cell*.7;ctx.shadowColor=h.color;ctx.fillStyle=h.color;
+    roundRect(-g.cell*.34,-g.cell*.14,g.cell*.68,g.cell*.28,g.cell*.12);ctx.fill();
+    ctx.fillStyle='#fff7';ctx.fillRect(-g.cell*.22,-g.cell*.045,g.cell*.44,g.cell*.09);ctx.restore();
+  });
+
+  if(fruit){
+    const c=cellCenter(fruit);
+    ctx.save();ctx.translate(c.x,c.y);ctx.shadowBlur=g.cell*.8;ctx.shadowColor='#6dff9a';
+    ctx.fillStyle='#6dff9a';ctx.beginPath();ctx.arc(0,0,g.cell*.27,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#d9ffe5';ctx.beginPath();ctx.arc(-g.cell*.08,-g.cell*.08,g.cell*.06,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+
+  if(goldFruit){
+    const c=cellCenter(goldFruit), pulse=1+Math.sin(elapsed*8)*.12;
+    ctx.save();ctx.translate(c.x,c.y);ctx.scale(pulse,pulse);ctx.shadowBlur=g.cell*1.2;ctx.shadowColor='#ffd85c';
+    ctx.fillStyle='#ffd85c';ctx.beginPath();ctx.arc(0,0,g.cell*.31,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff3b0';ctx.beginPath();ctx.arc(-g.cell*.09,-g.cell*.09,g.cell*.065,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+
+  if(power){
+    const c=cellCenter(power);
+    const symbols={shield:'S',magnet:'C',slow:'T',x2:'2×',ghost:'G'};
+    ctx.save();ctx.translate(c.x,c.y);ctx.rotate(Math.sin(elapsed*3)*.15);ctx.shadowBlur=g.cell;ctx.shadowColor='#c77dff';
+    ctx.fillStyle='#7b5cff';roundRect(-g.cell*.31,-g.cell*.31,g.cell*.62,g.cell*.62,g.cell*.16);ctx.fill();
+    ctx.fillStyle='white';ctx.font=`900 ${Math.max(10,g.cell*.33)}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(symbols[power.type],0,1);ctx.restore();
+  }
+
+  for(let i=snake.length-1;i>=0;i--){
+    const s=snake[i], c=cellCenter(s), t=1-i/Math.max(1,snake.length);
+    const size=g.cell*(i===0?.82:.72);
+    ctx.save();ctx.translate(c.x,c.y);
+    ctx.shadowBlur=i===0?g.cell*.85:g.cell*.3;
+    ctx.shadowColor=fever>0?'#ff5fc6':'#6fe8ff';
+    const grd=ctx.createLinearGradient(-size/2,-size/2,size/2,size/2);
+    grd.addColorStop(0, fever>0?'#ff7dd3':'#7ff4ff');
+    grd.addColorStop(1, fever>0?'#945cff':'#6378ff');
+    ctx.fillStyle=grd;roundRect(-size/2,-size/2,size,size,size*.28);ctx.fill();
+    if(i===0){
+      ctx.rotate(Math.atan2(dir.y,dir.x));
+      ctx.fillStyle='#06101d';
+      ctx.beginPath();ctx.arc(size*.15,-size*.15,size*.07,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(size*.15,size*.15,size*.07,0,Math.PI*2);ctx.fill();
+      if(shield>0){
+        ctx.strokeStyle='rgba(109,255,154,.85)';ctx.lineWidth=Math.max(2,g.cell*.08);
+        ctx.beginPath();ctx.arc(0,0,size*.75,0,Math.PI*2);ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  particles.forEach(p=>{
+    ctx.globalAlpha=clamp(p.life/p.max,0,1);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+  floating.forEach(f=>{
+    ctx.globalAlpha=clamp(f.life/f.max,0,1);
+    ctx.fillStyle=f.color;ctx.font='900 16px system-ui';ctx.textAlign='center';ctx.fillText(f.text,f.x,f.y);
+  });
+  ctx.globalAlpha=1;
+
+  if(state==='paused'){
+    ctx.fillStyle='rgba(3,5,12,.62)';ctx.fillRect(g.x,g.y,g.w,g.h);
+    ctx.fillStyle='#fff';ctx.textAlign='center';ctx.font=`900 ${Math.min(44,g.cell*1.6)}px system-ui`;ctx.fillText('PAUSED',g.x+g.w/2,g.y+g.h/2);
+  }
+
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  const bg=ctx.createRadialGradient(W*.5,H*.35,10,W*.5,H*.35,Math.max(W,H));
+  bg.addColorStop(0,'#111831');bg.addColorStop(.55,'#080d1d');bg.addColorStop(1,'#04060c');
+  ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+
+  ctx.globalAlpha=.5;
+  for(let i=0;i<55;i++){
+    const x=(i*173.3+elapsed*(i%3+1)*9)%W;
+    const y=(i*91.7)%H;
+    ctx.fillStyle=i%5===0?'#6fe8ff':'#ffffff';
+    ctx.fillRect(x,y,1.2,1.2);
+  }
+  ctx.globalAlpha=1;
+  drawBoard();
+}
+
+function loop(now){
+  const dt=Math.min(.033,(now-last)/1000||0);
+  last=now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function togglePause(){
+  if(state==='playing'){state='paused';toastEl.classList.remove('show');}
+  else if(state==='paused'){state='playing';last=performance.now();}
+}
+
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(['arrowup','arrowdown','arrowleft','arrowright',' ','w','a','s','d','p'].includes(k)) e.preventDefault();
+  if(k==='arrowup'||k==='w') setDirection(0,-1);
+  if(k==='arrowdown'||k==='s') setDirection(0,1);
+  if(k==='arrowleft'||k==='a') setDirection(-1,0);
+  if(k==='arrowright'||k==='d') setDirection(1,0);
+  if(k===' ') triggerDash();
+  if(k==='p') togglePause();
+});
+
+canvas.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='touch') swipeStart={x:e.clientX,y:e.clientY};
+});
+canvas.addEventListener('pointerup',e=>{
+  if(!swipeStart||e.pointerType!=='touch') return;
+  const dx=e.clientX-swipeStart.x,dy=e.clientY-swipeStart.y;
+  swipeStart=null;
+  if(Math.hypot(dx,dy)<24) return;
+  if(Math.abs(dx)>Math.abs(dy)) setDirection(dx>0?1:-1,0); else setDirection(0,dy>0?1:-1);
+});
+
+document.getElementById('up').addEventListener('pointerdown',()=>setDirection(0,-1));
+document.getElementById('down').addEventListener('pointerdown',()=>setDirection(0,1));
+document.getElementById('left').addEventListener('pointerdown',()=>setDirection(-1,0));
+document.getElementById('right').addEventListener('pointerdown',()=>setDirection(1,0));
+document.getElementById('dashBtn').addEventListener('pointerdown',triggerDash);
+document.getElementById('pauseBtn').addEventListener('pointerdown',togglePause);
+
+playBtn.addEventListener('click',startGame);
+howBtn.addEventListener('click',()=>{
+  centerCard.querySelector('p').innerHTML=
+    '<b>Green fruit</b> grows you and builds combo. <b>Gold fruit</b> gives big points and dash energy. '+
+    '<b>Purple boxes</b> give Shield, Ghost, Slow Time, Combo Charge or 2× Score. '+
+    'Portals warp you across the board. Hazard waves get tougher over time. Fill the combo bar to trigger <b>Fever Mode</b>.';
+  howBtn.textContent='GOT IT';
+});
+
+resetGame();
+draw();
+})();
+</script>
+</body>
+</html>
