@@ -101,16 +101,28 @@
   #toast.show{opacity:1;transform:translateX(-50%) scale(1)}
   @media (max-width:760px),(pointer:coarse){
     #mobile{display:block}
-    #powerPanel{left:12px;top:52px;width:148px;padding:6px 8px;opacity:.58}
-    .meterLine{grid-template-columns:46px 1fr;gap:6px}
+    #powerPanel{
+      left:12px;top:50px;width:150px;padding:6px 8px;opacity:.62;
+      background:rgba(7,10,20,.40)
+    }
+    .meterLine{grid-template-columns:47px 1fr;gap:6px}
     .label{font-size:7px}
-    .top{right:78px}
-    .pill{font-size:10px;padding:8px 10px}
+    .top{
+      left:10px;right:10px;top:max(8px,env(safe-area-inset-top));
+      gap:6px;align-items:center;flex-wrap:nowrap
+    }
+    .group{gap:5px;flex-wrap:nowrap}
+    .pill{font-size:8px;padding:7px 8px;white-space:nowrap}
+    #statusPill{font-size:8px;padding:7px 8px;max-width:96px;flex:0 0 auto}
+    #pauseBtn{
+      right:12px;top:52px;width:50px;height:50px;border-radius:15px
+    }
   }
   @media (max-width:430px){
-    #powerPanel{top:48px;width:138px}
-    #dpad{transform:scale(1.15);transform-origin:left bottom}
+    #powerPanel{top:48px;width:145px}
+    #dpad{transform:scale(1.08);transform-origin:left bottom}
     #dashBtn{width:104px;height:104px;font-size:16px}
+    #pauseBtn{right:10px;top:50px}
   }
 </style>
 </head>
@@ -196,8 +208,9 @@ function resize(){
 addEventListener('resize', resize);
 resize();
 
-const COLS = 28;
-const ROWS = 22;
+const IS_MOBILE_LAYOUT = matchMedia('(max-width:760px),(pointer:coarse)').matches;
+const COLS = IS_MOBILE_LAYOUT ? 22 : 28;
+const ROWS = IS_MOBILE_LAYOUT ? 24 : 22;
 let state = 'menu';
 let snake = [];
 let dir = {x:1,y:0};
@@ -249,14 +262,15 @@ const same = (a,b)=>a && b && a.x===b.x && a.y===b.y;
 
 function gridRect(){
   const isMobileUI = matchMedia('(max-width:760px),(pointer:coarse)').matches;
-  const marginX = isMobileUI ? 10 : 16;
-  const marginTop = isMobileUI ? 56 : 78;
-  const marginBottom = isMobileUI ? 126 : 24;
+  const marginX = isMobileUI ? 8 : 16;
+  const marginTop = isMobileUI ? 98 : 78;
+  const marginBottom = isMobileUI ? 118 : 24;
   const availW = W - marginX*2;
   const availH = H - marginTop - marginBottom;
   const cell = Math.max(12, Math.floor(Math.min(availW/COLS, availH/ROWS)));
   const gw = cell*COLS, gh = cell*ROWS;
-  return {cell, x:Math.floor((W-gw)/2), y:Math.floor(marginTop + Math.max(0,(availH-gh)/2)), w:gw, h:gh};
+  const y = isMobileUI ? marginTop : Math.floor(marginTop + Math.max(0,(availH-gh)/2));
+  return {cell, x:Math.floor((W-gw)/2), y, w:gw, h:gh};
 }
 
 function occupiedSet(includeItems=true){
